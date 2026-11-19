@@ -1,25 +1,40 @@
-# Modèle de Données NoSQL (MongoDB)
+# Modèle de Données NoSQL (MongoDB) — Spécification v1
 
-Ce document formalise les choix de conception NoSQL retenus pour la base de données MongoDB d'OliveConnect.
+Ce document détaille les règles d'architecture NoSQL (R1 à R6), les structures de collections et les stratégies d'indexation pour OliveConnect.
 
-## 1. Justification NoSQL & Stratégie d'Imbrication vs Référence
+---
 
-- **Imbrication** : Les structures composées fortement couplées et de taille bornée (comme les coordonnées géographiques `GeoLocation` / `GeoJsonPoint`) sont directement imbriquées dans le document parent.
-- **Référence** : Les entités ayant leur propre cycle de vie indépendant (`users`, `orchards`, `harvest_requests`) sont stockées dans des collections distinctes et liées par des identifiants (`farmerId`, `orchardId`).
-- **Sharding** : Non requis pour la volumétrie initiale (centaines d'exploitations et milliers de demandes).
+## 1. Règles de Conception NoSQL (R1 à R6)
 
-## 2. Collections et Règles d'Indexation
+- **Règle R1 (Imbrication bornée)** : Imbriquer les entités enfants lorsque leur cardinalité est strictement bornée et qu'elles partagent le cycle de vie du document parent (ex: `location` GeoJSON dans `orchards`, arrêts d'une tournée ≤ 20 stops).
+- **Règle R2 (Référence pour cardinalité ouverte)** : Utiliser des références par identifiant (`String id`) pour les relations 1-à-N où N est potentiellement infini (ex: un exploitant peut posséder des dizaines de vergers et des centaines de demandes au fil des saisons).
+- **Règle R3 (Indexation spatiale)** : Toute coordonnée cartographique exploitée pour le calcul de distance ou de proximité géographique doit porter un index `2dsphere` au format standard GeoJSON `[longitude, latitude]`.
+- **Règle R4 (Dénormalisation ciblée de lecture)** : Pour éviter des lookups coûteux lors des requêtes fréquentes, certains identifiants pivots sont dénormalisés (ex: `farmerId` présent directement dans `harvest_requests` pour filtrer les demandes d'un agriculteur sans joindre la table des vergers).
+- **Règle R5 (Traçabilité et horodatage)** : Chaque document racine porte les métadonnées de création et mise à jour (`createdAt`, `updatedAt`) pour garantir l'auditabilité.
+- **Règle R6 (Contraintes d'intégrité)** : Garantir l'unicité fonctionnelle au niveau du moteur de données par des index uniques (ex: champ `email` dans la collection `users`).
+
+---
+
+## 2. Collections et Définitions NoSQL
 
 ### 2.1 Collection `users`
-- Clé primaire : `_id` (ObjectId hexadécimal).
-- Index unique : `{ "email": 1 }` (garantie d'unicité à l'inscription).
+Stocke les profils utilisateurs et leurs identifiants de sécurité.
+- **Index** :
+  - `_id` : Clé primaire.
+  - `email` : Unique (`{ "email": 1 }`).
+  - `role` : Index simple pour filtrage administratif.
 
 ### 2.2 Collection `orchards`
-- Clé primaire : `_id`.
-- Index spatial : `{ "location": "2dsphere" }` (permettant les requêtes géographiques `$nearSphere` et `geoWithin`).
-- Index secondaire : `{ "farmerId": 1 }` (optimisation de la recherche par exploitant).
+Stocke les parcelles oléicoles et leur position géographique.
+- **Index** :
+  - `_id` : Clé primaire.
+  - `location` : Index géospatial `2dsphere` (`{ "location": "2dsphere" }`).
+  - `farmerId` : Index simple pour lister les vergers d'un exploitant.
 
 ### 2.3 Collection `harvest_requests`
-- Clé primaire : `_id`.
-- Index secondaire : `{ "farmerId": 1 }` et `{ "status": 1 }` (filtrage rapide des demandes en cours).
-- Index de liaison : `{ "orchardId": 1 }`.
+Stocke les demandes de récolte formulées par les agriculteurs.
+- **Index** :
+  - `_id` : Clé primaire.
+  - `farmerId` : Index simple.
+  - `orchardId` : Index simple.
+  - `status` : Index simple pour le filtrage par le responsable de collecte.
