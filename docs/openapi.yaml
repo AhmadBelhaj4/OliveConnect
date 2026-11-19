@@ -1,0 +1,401 @@
+openapi: 3.0.3
+info:
+  title: OliveConnect API
+  version: 1.0.0
+  description: Contrat API v1 gelé pour la plateforme logistique oléicole OliveConnect.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Serveur de développement local
+
+paths:
+  /auth/register:
+    post:
+      summary: Inscription d'un nouvel utilisateur
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Utilisateur créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      summary: Connexion et obtention du jeton JWT
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      summary: Récupération du profil connecté
+      tags: [Auth]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profil retourné
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /orchards:
+    post:
+      summary: Création d'un verger
+      tags: [Orchards]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrchardRequest'
+      responses:
+        '201':
+          description: Verger créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchardResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      summary: Liste des vergers
+      tags: [Orchards]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des vergers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrchardResponse'
+
+  /orchards/{id}:
+    get:
+      summary: Détails d'un verger
+      tags: [Orchards]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verger trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchardResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /harvest-requests:
+    post:
+      summary: Soumission d'une demande de récolte
+      tags: [HarvestRequests]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHarvestRequest'
+      responses:
+        '201':
+          description: Demande soumise avec statut SUBMITTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarvestRequestResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      summary: Liste des demandes de récolte
+      tags: [HarvestRequests]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des demandes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HarvestRequestResponse'
+
+  /harvest-requests/{id}:
+    get:
+      summary: Détail d'une demande de récolte
+      tags: [HarvestRequests]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Demande trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarvestRequestResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName, role]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [FARMER, COLLECTION_MANAGER, TEAM_LEADER, LOGISTICS_MANAGER, PRESS_MANAGER, ADMIN]
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+        userId:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOrchardRequest:
+      type: object
+      required: [name, surfaceHectares, treeCount, oliveVariety, location]
+      properties:
+        name:
+          type: string
+        surfaceHectares:
+          type: number
+        treeCount:
+          type: integer
+        oliveVariety:
+          type: string
+        location:
+          $ref: '#/components/schemas/GeoLocation'
+        maturityStatus:
+          type: string
+          enum: [UNKNOWN, IMMATURE, APPROACHING, OPTIMAL, OVERRIPE]
+
+    GeoLocation:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    OrchardResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        farmerId:
+          type: string
+        name:
+          type: string
+        surfaceHectares:
+          type: number
+        treeCount:
+          type: integer
+        oliveVariety:
+          type: string
+        location:
+          $ref: '#/components/schemas/GeoLocation'
+        maturityStatus:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateHarvestRequest:
+      type: object
+      required: [orchardId, type, estimatedQuantityKg, desiredStartDate]
+      properties:
+        orchardId:
+          type: string
+        type:
+          type: string
+          enum: [PLANNED, URGENT]
+        estimatedQuantityKg:
+          type: number
+        desiredStartDate:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    HarvestRequestResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        orchardId:
+          type: string
+        farmerId:
+          type: string
+        type:
+          type: string
+        estimatedQuantityKg:
+          type: number
+        desiredStartDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [SUBMITTED, APPROVED, REJECTED, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED]
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Non authentifié (401)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Accès refusé (403)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Ressource non trouvée (404)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflit (ex: email déjà pris) (409)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
