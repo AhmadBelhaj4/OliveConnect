@@ -83,4 +83,8 @@ public final class ResourceDtos {
             return new EquipmentResponse(d.getId(), d.getType(), d.getLabel(), d.getQuantity(), d.getStatus());
         }
     }
+
+    public record ResourceAvailabilityResponse(
+            java.time.LocalDate date, List<WorkerResponse> workers, List<VehicleResponse> vehicles,
+            List<BinResponse> bins, List<EquipmentResponse> equipment) {}
 }

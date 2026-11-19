@@ -407,3 +407,17 @@ export interface ImportJobResponse {
   rejectedCount: number;
   errors: ImportJobError[];
 }
+
+// --- Corps de requête §5.5 utilisés en S2 (ajout de types, pas de changement de contrat) ---
+export interface HarvestRequestPatchRequest {
+  type?: HarvestType;
+  preferredDate?: string;          // YYYY-MM-DD
+  estimatedQuantityKg?: number;
+  urgencyReason?: string | null;
+}
+export interface TourCreateRequest { tourDate: string; }
+export interface StopCompleteRequest { actualQuantityKg: number; note: string | null; }
+export interface PressCapacityRequest { availableCapacityKg: number; }
+export interface AlertResolveRequest { note: string; }
+export interface AlertDismissRequest { reason: string; }
+

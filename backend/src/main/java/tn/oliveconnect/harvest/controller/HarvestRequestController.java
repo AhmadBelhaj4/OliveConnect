@@ -56,4 +56,25 @@ public class HarvestRequestController {
     public HarvestRequestResponse get(@AuthenticationPrincipal AuthUser me, @PathVariable String id) {
         return service.get(me, id);
     }
+
+    @PostMapping("/{id}/review")
+    @PreAuthorize("hasRole('COLLECTION_MANAGER')")
+    public HarvestRequestResponse review(@AuthenticationPrincipal AuthUser me, @PathVariable String id,
+                                         @Valid @RequestBody ReviewRequest req) {
+        return service.review(me, id, req);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('FARMER','COLLECTION_MANAGER')")
+    public HarvestRequestResponse cancel(@AuthenticationPrincipal AuthUser me, @PathVariable String id,
+                                         @Valid @RequestBody(required = false) CancelRequest req) {
+        return service.cancel(me, id, req);
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('FARMER')")
+    public HarvestRequestResponse patch(@AuthenticationPrincipal AuthUser me, @PathVariable String id,
+                                        @Valid @RequestBody HarvestRequestPatchRequest req) {
+        return service.patch(me, id, req);
+    }
 }

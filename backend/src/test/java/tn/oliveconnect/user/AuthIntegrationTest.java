@@ -105,4 +105,27 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
            .andExpect(status().isForbidden())
            .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
+
+    @Test
+    void login_rateLimiting_returns429_onSixthFailure() throws Exception {
+        mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(REGISTER));
+
+        // 5 échecs consécutifs renvoient 401
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(post("/api/v1/auth/login")
+                            .header("X-Forwarded-For", "192.168.1.100")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"farmer@example.test\",\"password\":\"BadPass" + i + "\"}"))
+               .andExpect(status().isUnauthorized())
+               .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+        }
+
+        // Le 6ème échec renvoie 429 RATE_LIMITED
+        mvc.perform(post("/api/v1/auth/login")
+                        .header("X-Forwarded-For", "192.168.1.100")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"farmer@example.test\",\"password\":\"BadPass6\"}"))
+           .andExpect(status().isTooManyRequests())
+           .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+    }
 }

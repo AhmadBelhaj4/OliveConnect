@@ -1,0 +1,66 @@
+name: oliveconnect-prod
+
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: oliveconnect-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: oliveconnect
+    # AUCUNE section ports : MongoDB n'est accessible QUE sur le réseau interne Docker !
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://localhost:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: oliveconnect-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # AUCUNE section ports : Redis reste strictement interne !
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: oliveconnect-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/oliveconnect?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      OLIVECONNECT_IMPORT_INBOX: /app/inbox
+      OLIVECONNECT_IMPORT_PROCESSED: /app/processed
+    volumes:
+      - ../sample-data/inbox:/app/inbox
+      - ../sample-data/processed:/app/processed
+
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    container_name: oliveconnect-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mongo_data:

@@ -14,9 +14,11 @@ import {
   LogIn,
   Menu,
   X,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext';
 import { GlassCard } from '../components/GlassCard';
+import { GuidedTourModal } from '../components/GuidedTourModal';
 import { cn } from '../lib/utils';
 import type { Role } from '../types/contract';
 
@@ -37,6 +39,7 @@ const MENU_ITEMS: MenuItem[] = [
   { to: '/press/receptions', label: 'Pressoir', roles: ['PRESS_MANAGER', 'COLLECTION_MANAGER', 'ADMIN'], icon: Factory },
   { to: '/dashboard', label: 'Tableau de bord', roles: ['COLLECTION_MANAGER', 'PRESS_MANAGER', 'ADMIN'], icon: BarChart3 },
   { to: '/admin/users', label: 'Comptes & imports', roles: ['ADMIN'], icon: Users },
+  { to: '/help', label: 'Aide & guide', roles: 'PUBLIC', icon: HelpCircle },
 ];
 
 export function Layout() {
@@ -193,6 +196,8 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+
+      <GuidedTourModal />
     </div>
   );
 }

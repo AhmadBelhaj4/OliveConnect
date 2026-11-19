@@ -20,11 +20,14 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
+    private final tn.oliveconnect.security.LoginRateLimiter rateLimiter;
 
-    public AuthService(UserRepository users, PasswordEncoder encoder, JwtService jwt) {
+    public AuthService(UserRepository users, PasswordEncoder encoder, JwtService jwt,
+                       tn.oliveconnect.security.LoginRateLimiter rateLimiter) {
         this.users = users;
         this.encoder = encoder;
         this.jwt = jwt;
+        this.rateLimiter = rateLimiter;
     }
 
     public static String normalizeEmail(String email) {
@@ -51,10 +54,24 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest req) {
-        UserDocument u = users.findByEmail(normalizeEmail(req.email()))
+        return login(req, "127.0.0.1");
+    }
+
+    public LoginResponse login(LoginRequest req, String ip) {
+        String email = normalizeEmail(req.email());
+        rateLimiter.checkAllowed(ip, email);
+
+        var opt = users.findByEmail(email)
                 .filter(UserDocument::isActive)
-                .filter(x -> encoder.matches(req.password(), x.getPasswordHash()))
-                .orElseThrow(() -> ApiException.unauthenticated(BAD_CREDENTIALS)); // même message : on ne révèle rien
+                .filter(x -> encoder.matches(req.password(), x.getPasswordHash()));
+
+        if (opt.isEmpty()) {
+            rateLimiter.recordFailure(ip, email);
+            throw ApiException.unauthenticated(BAD_CREDENTIALS);
+        }
+
+        rateLimiter.reset(ip, email);
+        UserDocument u = opt.get();
         String token = jwt.generate(u.getId(), u.getEmail(), u.getRole());
         return new LoginResponse(token, "Bearer", jwt.expirationSeconds(), UserResponse.from(u));
     }

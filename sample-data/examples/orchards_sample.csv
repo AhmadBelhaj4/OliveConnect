@@ -1,0 +1,3 @@
+externalId,farmerEmail,name,areaHectares,oliveVariety,longitude,latitude,publicVisibility
+EXT-O1,farmer@example.test,Verger Exemple Sfax Nord,4.5,Chemlali,10.74,34.75,true
+EXT-O2,farmer@example.test,Verger Exemple Thyna,2.8,Chetoui,10.71,34.68,true

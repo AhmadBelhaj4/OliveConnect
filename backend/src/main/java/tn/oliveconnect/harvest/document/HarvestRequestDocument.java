@@ -35,6 +35,7 @@ public class HarvestRequestDocument {
     @Field(targetType = FieldType.OBJECT_ID) private String scheduledTourId;
     private Instant scheduledAt;
     private Instant completedAt;
+    private String cancelReason;   // interne : jamais exposé (HarvestRequestResponse reste à 18 clés)
     @CreatedDate private Instant createdAt;
     @LastModifiedDate private Instant updatedAt;
 }
