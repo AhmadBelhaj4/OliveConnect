@@ -1,51 +1,31 @@
 package tn.oliveconnect.orchard.document;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
-import org.springframework.data.mongodb.core.index.GeoSpatialIndexType;
-import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
+import tn.oliveconnect.common.enums.MaturityStatus;
 
 import java.time.Instant;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Document(collection = "orchards")
+@Document("orchards")
+@Getter @Setter @NoArgsConstructor
 public class OrchardDocument {
-    @Id
-    private String id;
-
-    @Indexed
-    private String farmerId;
-
+    @Id private String id;
+    @Field(targetType = FieldType.OBJECT_ID) private String farmerId;
     private String name;
-
-    private Double surfaceHectares;
-
-    private Integer treeCount;
-
+    private Double areaHectares;
     private String oliveVariety;
-
-    @GeoSpatialIndexed(type = GeoSpatialIndexType.GEO_2DSPHERE)
     private GeoJsonPoint location;
-
-    @Builder.Default
-    private MaturityStatus maturityStatus = MaturityStatus.UNKNOWN;
-
+    private MaturityStatus maturityStatus;
+    private boolean publicVisibility;
     private String externalId;
-
-    @CreatedDate
-    private Instant createdAt;
-
-    @LastModifiedDate
-    private Instant updatedAt;
+    @CreatedDate private Instant createdAt;
+    @LastModifiedDate private Instant updatedAt;
 }

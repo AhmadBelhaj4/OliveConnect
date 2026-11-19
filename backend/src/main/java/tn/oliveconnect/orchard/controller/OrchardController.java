@@ -1,46 +1,52 @@
 package tn.oliveconnect.orchard.controller;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import tn.oliveconnect.orchard.dto.CreateOrchardRequest;
-import tn.oliveconnect.orchard.dto.OrchardResponse;
+import tn.oliveconnect.common.web.PageResponse;
+import tn.oliveconnect.orchard.dto.*;
 import tn.oliveconnect.orchard.service.OrchardService;
-import tn.oliveconnect.security.UserPrincipal;
-
-import java.util.List;
+import tn.oliveconnect.security.AuthUser;
 
 @RestController
 @RequestMapping("/api/v1/orchards")
-@RequiredArgsConstructor
 public class OrchardController {
 
-    private final OrchardService orchardService;
+    private final OrchardService service;
 
-    @PostMapping
-    @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<OrchardResponse> createOrchard(
-            @Valid @RequestBody CreateOrchardRequest request,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        OrchardResponse response = orchardService.createOrchard(request, principal);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public OrchardController(OrchardService service) {
+        this.service = service;
     }
 
-    @GetMapping
-    public ResponseEntity<List<OrchardResponse>> getOrchards(@AuthenticationPrincipal UserPrincipal principal) {
-        List<OrchardResponse> response = orchardService.getOrchards(principal);
-        return ResponseEntity.ok(response);
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('FARMER')")
+    public OrchardResponse create(@AuthenticationPrincipal AuthUser me, @Valid @RequestBody OrchardCreateRequest req) {
+        return service.create(me, req);
+    }
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('FARMER')")
+    public PageResponse<OrchardResponse> mine(@AuthenticationPrincipal AuthUser me,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.mine(me, pageable);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OrchardResponse> getOrchardById(
-            @PathVariable String id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        OrchardResponse response = orchardService.getOrchardById(id, principal);
-        return ResponseEntity.ok(response);
+    @PreAuthorize("hasAnyRole('FARMER','COLLECTION_MANAGER','ADMIN')")
+    public OrchardResponse get(@AuthenticationPrincipal AuthUser me, @PathVariable String id) {
+        return service.get(me, id);
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FARMER','COLLECTION_MANAGER','ADMIN')")
+    public OrchardResponse patch(@AuthenticationPrincipal AuthUser me, @PathVariable String id,
+                                 @Valid @RequestBody OrchardPatchRequest req) {
+        return service.patch(me, id, req);
     }
 }

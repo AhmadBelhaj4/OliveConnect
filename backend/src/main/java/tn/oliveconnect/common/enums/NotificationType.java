@@ -1,0 +1,13 @@
+package tn.oliveconnect.common.enums;
+
+public enum NotificationType {
+    REQUEST_APPROVED,
+    REQUEST_REJECTED,
+    TOUR_SCHEDULED,
+    TOUR_CHANGED,
+    COLLECTION_STARTED,
+    COLLECTION_COMPLETED,
+    ALERT_ACKNOWLEDGED,
+    ALERT_RESOLVED,
+    ALERT_DISMISSED
+}

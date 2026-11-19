@@ -1,23 +1,12 @@
 package tn.oliveconnect.user.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import tn.oliveconnect.user.document.Role;
-
 import java.time.Instant;
+import tn.oliveconnect.common.enums.Role;
+import tn.oliveconnect.user.document.UserDocument;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class UserResponse {
-    private String id;
-    private String email;
-    private String fullName;
-    private String phone;
-    private Role role;
-    private boolean active;
-    private Instant createdAt;
+/** Contrat §5.5 : id, fullName, email, role, active, createdAt (PAS de phone, PAS de passwordHash). */
+public record UserResponse(String id, String fullName, String email, Role role, boolean active, Instant createdAt) {
+    public static UserResponse from(UserDocument u) {
+        return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getRole(), u.isActive(), u.getCreatedAt());
+    }
 }

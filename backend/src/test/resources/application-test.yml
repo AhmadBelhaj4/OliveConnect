@@ -1,0 +1,12 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://oliveconnect:change-me@localhost:27017/oliveconnect_test?authSource=admin
+    redis:
+      host: localhost
+      port: 6379
+
+oliveconnect:
+  jwt:
+    secret: test-secret-only-for-tests-0123456789-abcdefghijklmnop
+    expiration-seconds: 7200

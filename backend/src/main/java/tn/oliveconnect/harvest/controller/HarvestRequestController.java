@@ -1,47 +1,59 @@
 package tn.oliveconnect.harvest.controller;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDate;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import tn.oliveconnect.harvest.dto.CreateHarvestRequest;
-import tn.oliveconnect.harvest.dto.HarvestRequestResponse;
+import tn.oliveconnect.common.enums.HarvestStatus;
+import tn.oliveconnect.common.web.PageResponse;
+import tn.oliveconnect.harvest.dto.*;
 import tn.oliveconnect.harvest.service.HarvestRequestService;
-import tn.oliveconnect.security.UserPrincipal;
-
-import java.util.List;
+import tn.oliveconnect.security.AuthUser;
 
 @RestController
 @RequestMapping("/api/v1/harvest-requests")
-@RequiredArgsConstructor
 public class HarvestRequestController {
 
-    private final HarvestRequestService harvestRequestService;
+    private final HarvestRequestService service;
+
+    public HarvestRequestController(HarvestRequestService service) {
+        this.service = service;
+    }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<HarvestRequestResponse> createHarvestRequest(
-            @Valid @RequestBody CreateHarvestRequest request,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        HarvestRequestResponse response = harvestRequestService.createHarvestRequest(request, principal);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public HarvestRequestResponse create(@AuthenticationPrincipal AuthUser me,
+                                         @Valid @RequestBody HarvestRequestCreateRequest req) {
+        return service.create(me, req);
+    }
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('FARMER')")
+    public PageResponse<HarvestRequestResponse> mine(@AuthenticationPrincipal AuthUser me,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.mine(me, pageable);
     }
 
     @GetMapping
-    public ResponseEntity<List<HarvestRequestResponse>> getHarvestRequests(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        List<HarvestRequestResponse> response = harvestRequestService.getHarvestRequests(principal);
-        return ResponseEntity.ok(response);
+    @PreAuthorize("hasAnyRole('COLLECTION_MANAGER','ADMIN')")
+    public PageResponse<HarvestRequestResponse> queue(
+            @RequestParam(required = false) HarvestStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.queue(status, from, to, pageable);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<HarvestRequestResponse> getHarvestRequestById(
-            @PathVariable String id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        HarvestRequestResponse response = harvestRequestService.getHarvestRequestById(id, principal);
-        return ResponseEntity.ok(response);
+    @PreAuthorize("hasAnyRole('FARMER','COLLECTION_MANAGER','ADMIN')")
+    public HarvestRequestResponse get(@AuthenticationPrincipal AuthUser me, @PathVariable String id) {
+        return service.get(me, id);
     }
 }

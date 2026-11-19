@@ -4,77 +4,52 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import tn.oliveconnect.user.document.Role;
-import tn.oliveconnect.user.document.UserDocument;
-
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
+import javax.crypto.SecretKey;
+import org.springframework.stereotype.Service;
+import tn.oliveconnect.common.enums.Role;
 
 @Service
 public class JwtService {
 
-    private final SecretKey signingKey;
+    private final SecretKey key;
     private final long expirationSeconds;
 
-    public JwtService(
-            @Value("${security.jwt.secret:PtvfsATs53kuMxWNH4kZ3jPyojHoNSs1rumISO5QWYoGamfC/JRMpnvf+Naq1ofp}") String secret,
-            @Value("${security.jwt.expiration-seconds:7200}") long expirationSeconds) {
-        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expirationSeconds = expirationSeconds;
+    public JwtService(JwtProperties props) {
+        if (props.secret() == null || props.secret().getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET absent ou trop court (32 octets minimum pour HS256)");
+        }
+        this.key = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
+        this.expirationSeconds = props.expirationSeconds() > 0 ? props.expirationSeconds() : 7200L;
     }
 
-    public String generateToken(UserDocument user) {
-        Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("userId", user.getId());
-        extraClaims.put("email", user.getEmail());
-        extraClaims.put("role", user.getRole().name());
-        extraClaims.put("fullName", user.getFullName());
+    public long expirationSeconds() {
+        return expirationSeconds;
+    }
 
-        long nowMillis = System.currentTimeMillis();
-        Date now = new Date(nowMillis);
-        Date expiryDate = new Date(nowMillis + (expirationSeconds * 1000L));
-
+    public String generate(String userId, String email, Role role) {
+        Instant now = Instant.now();
         return Jwts.builder()
-                .subject(user.getId())
-                .claims(extraClaims)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(signingKey)
+                .subject(userId)
+                .claim("email", email)
+                .claim("role", role.name())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(expirationSeconds)))
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 
-    public Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(signingKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
-
-    public String extractUserId(String token) {
-        return extractAllClaims(token).getSubject();
-    }
-
-    public String extractEmail(String token) {
-        return extractAllClaims(token).get("email", String.class);
-    }
-
-    public Role extractRole(String token) {
-        String roleStr = extractAllClaims(token).get("role", String.class);
-        return Role.valueOf(roleStr);
-    }
-
-    public boolean isTokenValid(String token) {
+    /** Vide si signature invalide, token expiré ou mal formé (verifyWith refuse aussi alg=none). */
+    public Optional<AuthUser> parse(String token) {
         try {
-            Claims claims = extractAllClaims(token);
-            return !claims.getExpiration().before(new Date());
+            Claims c = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            return Optional.of(new AuthUser(c.getSubject(), c.get("email", String.class),
+                    Role.valueOf(c.get("role", String.class))));
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return Optional.empty();
         }
     }
 }

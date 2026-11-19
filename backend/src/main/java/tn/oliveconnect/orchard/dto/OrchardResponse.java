@@ -1,27 +1,35 @@
 package tn.oliveconnect.orchard.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import tn.oliveconnect.orchard.document.GeoLocation;
-import tn.oliveconnect.orchard.document.MaturityStatus;
-
 import java.time.Instant;
+import tn.oliveconnect.common.enums.MaturityStatus;
+import tn.oliveconnect.common.web.GeoPointDto;
+import tn.oliveconnect.orchard.document.OrchardDocument;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class OrchardResponse {
-    private String id;
-    private String farmerId;
-    private String name;
-    private Double surfaceHectares;
-    private Integer treeCount;
-    private String oliveVariety;
-    private GeoLocation location;
-    private MaturityStatus maturityStatus;
-    private Instant createdAt;
-    private Instant updatedAt;
+/** Contrat §5.5 OrchardResponse — 10 clés exactement. */
+public record OrchardResponse(
+        String id,
+        String farmerId,
+        String name,
+        Double areaHectares,
+        String oliveVariety,
+        GeoPointDto location,
+        MaturityStatus maturityStatus,
+        boolean publicVisibility,
+        Instant createdAt,
+        Instant updatedAt) {
+
+    public static OrchardResponse from(OrchardDocument o) {
+        return new OrchardResponse(
+                o.getId(),
+                o.getFarmerId(),
+                o.getName(),
+                o.getAreaHectares(),
+                o.getOliveVariety(),
+                GeoPointDto.from(o.getLocation()),
+                o.getMaturityStatus(),
+                o.isPublicVisibility(),
+                o.getCreatedAt(),
+                o.getUpdatedAt()
+        );
+    }
 }

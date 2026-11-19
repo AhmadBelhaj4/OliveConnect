@@ -1,83 +1,78 @@
 package tn.oliveconnect.harvest.service;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import tn.oliveconnect.common.exception.ResourceNotFoundException;
-import tn.oliveconnect.harvest.document.HarvestRequestDocument;
-import tn.oliveconnect.harvest.document.HarvestStatus;
-import tn.oliveconnect.harvest.dto.CreateHarvestRequest;
-import tn.oliveconnect.harvest.dto.HarvestRequestResponse;
-import tn.oliveconnect.harvest.repository.HarvestRequestRepository;
-import tn.oliveconnect.orchard.repository.OrchardRepository;
-import tn.oliveconnect.security.UserPrincipal;
-import tn.oliveconnect.user.document.Role;
-
 import java.time.Instant;
-import java.util.List;
+import java.time.LocalDate;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import tn.oliveconnect.common.enums.HarvestStatus;
+import tn.oliveconnect.common.enums.HarvestType;
+import tn.oliveconnect.common.enums.Role;
+import tn.oliveconnect.common.error.ApiException;
+import tn.oliveconnect.common.facade.CacheInvalidator;
+import tn.oliveconnect.common.web.PageResponse;
+import tn.oliveconnect.harvest.document.HarvestRequestDocument;
+import tn.oliveconnect.harvest.dto.*;
+import tn.oliveconnect.harvest.repository.*;
+import tn.oliveconnect.orchard.document.OrchardDocument;
+import tn.oliveconnect.orchard.repository.OrchardRepository;
+import tn.oliveconnect.security.AuthUser;
 
 @Service
-@RequiredArgsConstructor
 public class HarvestRequestService {
 
-    private final HarvestRequestRepository harvestRequestRepository;
-    private final OrchardRepository orchardRepository;
+    private static final String NOT_FOUND = "Demande introuvable.";
+    private final HarvestRequestRepository requests;
+    private final HarvestRequestSearchRepository search;
+    private final OrchardRepository orchards;
+    private final CacheInvalidator cache;
 
-    public HarvestRequestResponse createHarvestRequest(CreateHarvestRequest request, UserPrincipal principal) {
-        // Ownership check: orchard must belong to this farmer
-        orchardRepository.findByIdAndFarmerId(request.getOrchardId(), principal.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Verger introuvable ou non autorisé : " + request.getOrchardId()));
-
-        HarvestRequestDocument document = HarvestRequestDocument.builder()
-                .orchardId(request.getOrchardId())
-                .farmerId(principal.getId())
-                .type(request.getType())
-                .estimatedQuantityKg(request.getEstimatedQuantityKg())
-                .desiredStartDate(request.getDesiredStartDate())
-                .status(HarvestStatus.SUBMITTED)
-                .notes(request.getNotes())
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-
-        HarvestRequestDocument saved = harvestRequestRepository.save(document);
-        return toResponse(saved);
+    public HarvestRequestService(HarvestRequestRepository requests, HarvestRequestSearchRepository search,
+                                 OrchardRepository orchards, CacheInvalidator cache) {
+        this.requests = requests;
+        this.search = search;
+        this.orchards = orchards;
+        this.cache = cache;
     }
 
-    public List<HarvestRequestResponse> getHarvestRequests(UserPrincipal principal) {
-        List<HarvestRequestDocument> list;
-        if (principal.getRole() == Role.FARMER) {
-            list = harvestRequestRepository.findByFarmerId(principal.getId());
-        } else {
-            list = harvestRequestRepository.findAll();
+    public HarvestRequestResponse create(AuthUser me, HarvestRequestCreateRequest req) {
+        if (req.type() == HarvestType.URGENT && (req.urgencyReason() == null || req.urgencyReason().isBlank())) {
+            throw ApiException.validation("urgencyReason", "Obligatoire pour une demande urgente");
         }
-        return list.stream().map(this::toResponse).toList();
+        OrchardDocument orchard = orchards.findById(req.orchardId())
+                .filter(o -> me.id().equals(o.getFarmerId()))
+                .orElseThrow(() -> ApiException.notFound("Verger introuvable."));
+
+        HarvestRequestDocument d = new HarvestRequestDocument();
+        d.setFarmerId(me.id());
+        d.setOrchardId(orchard.getId());
+        d.setOrchardName(orchard.getName());
+        d.setType(req.type());
+        d.setUrgencyReason(req.type() == HarvestType.URGENT ? req.urgencyReason().trim() : null);
+        d.setStatus(HarvestStatus.SUBMITTED);
+        d.setRequestedAt(Instant.now());
+        d.setPreferredDate(req.preferredDate());
+        d.setEstimatedQuantityKg(req.estimatedQuantityKg());
+        d = requests.save(d);
+        cache.orchardChanged(orchard.getId());
+        cache.mapChanged();
+        return HarvestRequestResponse.from(d);
     }
 
-    public HarvestRequestResponse getHarvestRequestById(String id, UserPrincipal principal) {
-        HarvestRequestDocument doc;
-        if (principal.getRole() == Role.FARMER) {
-            doc = harvestRequestRepository.findByIdAndFarmerId(id, principal.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Demande de récolte introuvable : " + id));
-        } else {
-            doc = harvestRequestRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Demande de récolte introuvable : " + id));
+    public PageResponse<HarvestRequestResponse> mine(AuthUser me, Pageable pageable) {
+        return PageResponse.from(requests.findByFarmerId(me.id(), pageable), HarvestRequestResponse::from);
+    }
+
+    public PageResponse<HarvestRequestResponse> queue(HarvestStatus status, LocalDate from, LocalDate to, Pageable p) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw ApiException.validation("from", "from doit être ≤ to");
         }
-        return toResponse(doc);
+        return PageResponse.from(search.search(status, from, to, p), HarvestRequestResponse::from);
     }
 
-    public HarvestRequestResponse toResponse(HarvestRequestDocument doc) {
-        return HarvestRequestResponse.builder()
-                .id(doc.getId())
-                .orchardId(doc.getOrchardId())
-                .farmerId(doc.getFarmerId())
-                .type(doc.getType())
-                .estimatedQuantityKg(doc.getEstimatedQuantityKg())
-                .desiredStartDate(doc.getDesiredStartDate())
-                .status(doc.getStatus())
-                .notes(doc.getNotes())
-                .rejectionReason(doc.getRejectionReason())
-                .createdAt(doc.getCreatedAt())
-                .updatedAt(doc.getUpdatedAt())
-                .build();
+    public HarvestRequestResponse get(AuthUser me, String id) {
+        HarvestRequestDocument d = requests.findById(id).orElseThrow(() -> ApiException.notFound(NOT_FOUND));
+        boolean owner = me.hasRole(Role.FARMER) && me.id().equals(d.getFarmerId());
+        if (!owner && !me.isStaff()) throw ApiException.notFound(NOT_FOUND);
+        return HarvestRequestResponse.from(d);
     }
 }

@@ -1,91 +1,73 @@
 package tn.oliveconnect.orchard.service;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import tn.oliveconnect.common.exception.ResourceNotFoundException;
-import tn.oliveconnect.orchard.document.GeoLocation;
-import tn.oliveconnect.orchard.document.MaturityStatus;
+import tn.oliveconnect.common.enums.MaturityStatus;
+import tn.oliveconnect.common.enums.Role;
+import tn.oliveconnect.common.error.ApiException;
+import tn.oliveconnect.common.facade.CacheInvalidator;
+import tn.oliveconnect.common.web.PageResponse;
 import tn.oliveconnect.orchard.document.OrchardDocument;
-import tn.oliveconnect.orchard.dto.CreateOrchardRequest;
-import tn.oliveconnect.orchard.dto.OrchardResponse;
+import tn.oliveconnect.orchard.dto.*;
 import tn.oliveconnect.orchard.repository.OrchardRepository;
-import tn.oliveconnect.security.UserPrincipal;
-import tn.oliveconnect.user.document.Role;
-
-import java.time.Instant;
-import java.util.List;
+import tn.oliveconnect.security.AuthUser;
 
 @Service
-@RequiredArgsConstructor
 public class OrchardService {
 
-    private final OrchardRepository orchardRepository;
+    private static final String NOT_FOUND = "Verger introuvable.";
+    private final OrchardRepository orchards;
+    private final CacheInvalidator cache;
 
-    public OrchardResponse createOrchard(CreateOrchardRequest request, UserPrincipal principal) {
-        GeoJsonPoint geoPoint = new GeoJsonPoint(
-                request.getLocation().getLongitude(),
-                request.getLocation().getLatitude()
-        );
-
-        OrchardDocument orchard = OrchardDocument.builder()
-                .farmerId(principal.getId())
-                .name(request.getName().trim())
-                .surfaceHectares(request.getSurfaceHectares())
-                .treeCount(request.getTreeCount())
-                .oliveVariety(request.getOliveVariety().trim())
-                .location(geoPoint)
-                .maturityStatus(request.getMaturityStatus() != null ? request.getMaturityStatus() : MaturityStatus.UNKNOWN)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-
-        OrchardDocument saved = orchardRepository.save(orchard);
-        return toResponse(saved);
+    public OrchardService(OrchardRepository orchards, CacheInvalidator cache) {
+        this.orchards = orchards;
+        this.cache = cache;
     }
 
-    public List<OrchardResponse> getOrchards(UserPrincipal principal) {
-        List<OrchardDocument> list;
-        if (principal.getRole() == Role.FARMER) {
-            list = orchardRepository.findByFarmerId(principal.getId());
-        } else {
-            list = orchardRepository.findAll();
-        }
-        return list.stream().map(this::toResponse).toList();
+    public OrchardResponse create(AuthUser me, OrchardCreateRequest req) {
+        OrchardDocument o = new OrchardDocument();
+        o.setFarmerId(me.id());
+        o.setName(req.name().trim());
+        o.setAreaHectares(req.areaHectares());
+        o.setOliveVariety(req.oliveVariety().trim());
+        o.setLocation(req.location().toGeoJson("location"));
+        o.setMaturityStatus(MaturityStatus.UNKNOWN);
+        o.setPublicVisibility(req.publicVisibility());
+        o = orchards.save(o);
+        cache.orchardChanged(o.getId());
+        cache.mapChanged();
+        return OrchardResponse.from(o);
     }
 
-    public OrchardResponse getOrchardById(String id, UserPrincipal principal) {
-        OrchardDocument orchard;
-        if (principal.getRole() == Role.FARMER) {
-            orchard = orchardRepository.findByIdAndFarmerId(id, principal.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Verger introuvable : " + id));
-        } else {
-            orchard = orchardRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Verger introuvable : " + id));
-        }
-        return toResponse(orchard);
+    public PageResponse<OrchardResponse> mine(AuthUser me, Pageable pageable) {
+        return PageResponse.from(orchards.findByFarmerId(me.id(), pageable), OrchardResponse::from);
     }
 
-    public OrchardResponse toResponse(OrchardDocument doc) {
-        GeoLocation loc = null;
-        if (doc.getLocation() != null) {
-            loc = GeoLocation.builder()
-                    .longitude(doc.getLocation().getX())
-                    .latitude(doc.getLocation().getY())
-                    .build();
-        }
+    public OrchardResponse get(AuthUser me, String id) {
+        return OrchardResponse.from(loadReadable(me, id));
+    }
 
-        return OrchardResponse.builder()
-                .id(doc.getId())
-                .farmerId(doc.getFarmerId())
-                .name(doc.getName())
-                .surfaceHectares(doc.getSurfaceHectares())
-                .treeCount(doc.getTreeCount())
-                .oliveVariety(doc.getOliveVariety())
-                .location(loc)
-                .maturityStatus(doc.getMaturityStatus())
-                .createdAt(doc.getCreatedAt())
-                .updatedAt(doc.getUpdatedAt())
-                .build();
+    public OrchardResponse patch(AuthUser me, String id, OrchardPatchRequest req) {
+        OrchardDocument o = loadReadable(me, id);
+        if (req.maturityStatus() != null && me.hasRole(Role.FARMER)) {
+            throw ApiException.accessDenied("Seul le responsable de collecte peut modifier la maturité.");
+        }
+        if (req.name() != null) o.setName(req.name().trim());
+        if (req.areaHectares() != null) o.setAreaHectares(req.areaHectares());
+        if (req.oliveVariety() != null) o.setOliveVariety(req.oliveVariety().trim());
+        if (req.location() != null) o.setLocation(req.location().toGeoJson("location"));
+        if (req.publicVisibility() != null) o.setPublicVisibility(req.publicVisibility());
+        if (req.maturityStatus() != null) o.setMaturityStatus(req.maturityStatus());
+        o = orchards.save(o);
+        cache.orchardChanged(o.getId());
+        cache.mapChanged();
+        return OrchardResponse.from(o);
+    }
+
+    private OrchardDocument loadReadable(AuthUser me, String id) {
+        OrchardDocument o = orchards.findById(id).orElseThrow(() -> ApiException.notFound(NOT_FOUND));
+        if (me.isStaff()) return o;
+        if (me.hasRole(Role.FARMER) && me.id().equals(o.getFarmerId())) return o;
+        throw ApiException.notFound(NOT_FOUND);
     }
 }
