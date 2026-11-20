@@ -5,6 +5,7 @@ import type {
   TourStatus,
   MaturityStatus,
   QualityGrade,
+  ResourceStatus,
 } from '../../types/contract';
 
 export interface StatusStyle {
@@ -85,4 +86,10 @@ export const qualityGradeStyles: Record<QualityGrade, StatusStyle> = {
   A: { label: 'Grade A', fg: '#1b5e20', bg: '#d1fae5' },
   B: { label: 'Grade B', fg: '#b45309', bg: '#fef3c7' },
   C: { label: 'Grade C', fg: '#b33a3a', bg: '#fee2e2' },
+};
+
+export const resourceStatusStyles: Record<ResourceStatus, StatusStyle> = {
+  AVAILABLE:   { label: 'Disponible',  fg: '#1b5e20', bg: '#d1fae5', dot: '#1b5e20' },
+  IN_USE:      { label: 'En tournée',  fg: '#b07f1f', bg: '#f7eccf', dot: '#b07f1f' },
+  MAINTENANCE: { label: 'Maintenance', fg: '#b33a3a', bg: '#fee2e2', dot: '#b33a3a' },
 };

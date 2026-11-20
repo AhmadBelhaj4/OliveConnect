@@ -253,6 +253,355 @@ export const handlers = [
     };
     return HttpResponse.json(fc);
   }),
+
+  http.get('/api/v1/harvest-requests', ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const filtered = status ? harvestRequests.filter((r) => r.status === status) : harvestRequests;
+    return HttpResponse.json({
+      content: filtered,
+      page: 0,
+      size: 20,
+      totalElements: filtered.length,
+      totalPages: 1,
+    });
+  }),
+
+  http.post('/api/v1/harvest-requests/:id/review', async ({ params, request }) => {
+    const { id } = params;
+    const body = (await request.json()) as { decision: 'APPROVE' | 'REJECT'; reason?: string };
+    const req = harvestRequests.find((r) => r.id === id);
+    if (!req) return HttpResponse.json({ message: 'Demande introuvable' }, { status: 404 });
+    req.status = body.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    req.reviewNote = body.reason || null;
+    return HttpResponse.json(req);
+  }),
+
+  http.get('/api/v1/resources/availability', ({ request }) => {
+    const url = new URL(request.url);
+    const date = url.searchParams.get('date') || '2026-11-20';
+    return HttpResponse.json({
+      date,
+      workers: [
+        { id: '6741w1c2e4b0a1b2c3d4e001', fullName: 'Ali Ben Salah', phone: '21698111222', skills: ['PICKING'], status: 'AVAILABLE' },
+        { id: '6741w2c2e4b0a1b2c3d4e002', fullName: 'Mohamed Trabelsi', phone: '21698333444', skills: ['PICKING'], status: 'AVAILABLE' },
+      ],
+      vehicles: [
+        { id: '6741v1c2e4b0a1b2c3d4e001', type: 'TRACTOR', registration: '120 TUN 4567', capacityKg: 3500, status: 'AVAILABLE' },
+      ],
+      bins: [
+        { id: '6741b1c2e4b0a1b2c3d4e001', code: 'BIN-101', capacityKg: 500, status: 'AVAILABLE' },
+        { id: '6741b2c2e4b0a1b2c3d4e002', code: 'BIN-102', capacityKg: 500, status: 'AVAILABLE' },
+      ],
+      equipment: [],
+    });
+  }),
+
+  http.get('/api/v1/tours', () =>
+    HttpResponse.json({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+    }),
+  ),
+
+  http.post('/api/v1/tours', async ({ request }) => {
+    const body = (await request.json()) as { tourDate: string };
+    return HttpResponse.json(
+      {
+        id: '6741t1c2e4b0a1b2c3d4e001',
+        tourDate: body.tourDate,
+        status: 'DRAFT',
+        teamLeaderId: null,
+        vehicleIds: [],
+        workerIds: [],
+        binIds: [],
+        stops: [],
+        startedAt: null,
+        completedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.post('/api/v1/tours/:id/plan', async ({ params, request }) => {
+    const { id } = params;
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      id,
+      tourDate: '2026-11-20',
+      status: 'PLANNED',
+      teamLeaderId: body.teamLeaderId,
+      vehicleIds: body.vehicleIds,
+      workerIds: body.workerIds,
+      binIds: body.binIds,
+      stops: (body.stops || []).map((s: any, idx: number) => ({
+        stopId: `stop-${idx}`,
+        sequence: s.sequence,
+        harvestRequestId: s.harvestRequestId,
+        orchardId: '6741a1c2e4b0a1b2c3d4e5f6',
+        orchardName: 'North Orchard',
+        plannedQuantityKg: 2500,
+        actualQuantityKg: null,
+        status: 'PLANNED',
+      })),
+      startedAt: null,
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.post('/api/v1/tours/:id/start', async ({ params }) => {
+    return HttpResponse.json({ id: params.id, status: 'IN_PROGRESS' });
+  }),
+
+  http.post('/api/v1/tours/:id/stops/:stopId/complete', async ({ params }) => {
+    return HttpResponse.json({ id: params.id, status: 'IN_PROGRESS' });
+  }),
+
+  http.post('/api/v1/tours/:id/complete', async ({ params }) => {
+    return HttpResponse.json({ id: params.id, status: 'COMPLETED' });
+  }),
+
+  http.get('/api/v1/alerts', () =>
+    HttpResponse.json({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+    }),
+  ),
+
+  http.post('/api/v1/alerts', async ({ request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json(
+      {
+        id: '6741a9c2e4b0a1b2c3d4e001',
+        farmerId: '6741a0c2e4b0a1b2c3d4e5f6',
+        orchardId: body.orchardId,
+        type: body.type,
+        description: body.description,
+        location: body.location,
+        priority: body.priority,
+        status: 'OPEN',
+        createdAt: new Date().toISOString(),
+        acknowledgedAt: null,
+        resolvedAt: null,
+        resolutionNote: null,
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get('/api/v1/notifications', () =>
+    HttpResponse.json({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+    }),
+  ),
+
+  http.post('/api/v1/notifications/:id/read', ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      readAt: new Date().toISOString(),
+    }),
+  ),
+
+  http.get('/api/v1/presses', () =>
+    HttpResponse.json({
+      content: [
+        {
+          id: '6741p1c2e4b0a1b2c3d4e001',
+          name: 'Pressoir Central Sfax',
+          location: { type: 'Point', coordinates: [10.75, 34.74] },
+          dailyCapacityKg: 50000,
+          availableCapacityKg: 35000,
+        },
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    }),
+  ),
+
+  http.patch('/api/v1/presses/:id/capacity', async ({ params, request }) => {
+    const body = (await request.json()) as { availableCapacityKg: number };
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Pressoir Central Sfax',
+      location: { type: 'Point', coordinates: [10.75, 34.74] },
+      dailyCapacityKg: 50000,
+      availableCapacityKg: body.availableCapacityKg,
+    });
+  }),
+
+  http.get('/api/v1/press-receptions', () =>
+    HttpResponse.json({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+    }),
+  ),
+
+  http.post('/api/v1/press-receptions', async ({ request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json(
+      {
+        id: '6741r1c2e4b0a1b2c3d4e001',
+        tourId: body.tourId,
+        binId: body.binId,
+        pressId: body.pressId,
+        receivedAt: new Date().toISOString(),
+        weightKg: body.weightKg,
+        qualityGrade: body.qualityGrade,
+        notes: body.notes,
+        recordedBy: '6741ab00e4b0a1b2c3d4e504',
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get('/api/v1/resources/vehicles', () =>
+    HttpResponse.json({
+      content: [
+        { id: '6741v1c2e4b0a1b2c3d4e001', type: 'TRACTOR', registration: '120 TUN 4567', capacityKg: 3500, status: 'AVAILABLE' },
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    }),
+  ),
+
+  // --- S3 Endpoints: Dashboard & Admin ---
+  http.get('/api/v1/dashboard/summary', () =>
+    HttpResponse.json({
+      from: '2026-11-01',
+      to: '2026-11-30',
+      totalHarvestedKg: 4200.0,
+      totalReceivedKg: 3800.0,
+      completedTours: 3,
+      openAlerts: 1,
+      requestsByStatus: {
+        SUBMITTED: 2,
+        APPROVED: 1,
+        REJECTED: 0,
+        SCHEDULED: 1,
+        IN_PROGRESS: 1,
+        COMPLETED: 3,
+        CANCELLED: 0,
+      },
+    }),
+  ),
+
+  http.get('/api/v1/dashboard/yield-by-orchard', () =>
+    HttpResponse.json({
+      from: '2026-11-01',
+      to: '2026-11-30',
+      items: [
+        { orchardId: '6741a100e4b0a1b2c3d4e501', orchardName: 'Verger Sfax Nord', totalHarvestedKg: 2500.0, collectionCount: 2 },
+        { orchardId: '6741a100e4b0a1b2c3d4e502', orchardName: 'Verger Thyna Sud', totalHarvestedKg: 1700.0, collectionCount: 1 },
+      ],
+    }),
+  ),
+
+  http.get('/api/v1/dashboard/collection-delays', () =>
+    HttpResponse.json({
+      from: '2026-11-01',
+      to: '2026-11-30',
+      sampleSize: 3,
+      avgSubmittedToScheduledHours: 18.5,
+      avgScheduledToCompletedHours: 22.0,
+    }),
+  ),
+
+  http.get('/api/v1/dashboard/bin-fill-rates', () =>
+    HttpResponse.json({
+      from: '2026-11-01',
+      to: '2026-11-30',
+      items: [
+        { binId: 'bin-01', binCode: 'BIN-01', capacityKg: 500, receptionCount: 2, avgFillRate: 0.85 },
+        { binId: 'bin-02', binCode: 'BIN-02', capacityKg: 600, receptionCount: 1, avgFillRate: 0.72 },
+      ],
+    }),
+  ),
+
+  http.get('/api/v1/admin/users', () =>
+    HttpResponse.json({
+      content: Object.values(DEMO_USERS),
+      page: 0,
+      size: 20,
+      totalElements: Object.values(DEMO_USERS).length,
+      totalPages: 1,
+    }),
+  ),
+
+  http.patch('/api/v1/admin/users/:id/role', async ({ params, request }) => {
+    const body = (await request.json()) as { role: Role };
+    const user = Object.values(DEMO_USERS).find((u) => u.id === params.id) || DEMO_USERS['farmer@example.test'];
+    return HttpResponse.json({ ...user, role: body.role });
+  }),
+
+  http.patch('/api/v1/admin/users/:id/active', async ({ params, request }) => {
+    const body = (await request.json()) as { active: boolean };
+    const user = Object.values(DEMO_USERS).find((u) => u.id === params.id) || DEMO_USERS['farmer@example.test'];
+    return HttpResponse.json({ ...user, active: body.active });
+  }),
+
+  http.get('/api/v1/admin/imports', () =>
+    HttpResponse.json({
+      content: [
+        {
+          id: 'imp-001',
+          type: 'ORCHARDS',
+          sourceFile: 'orchards_sfax.csv',
+          status: 'COMPLETED',
+          startedAt: new Date(Date.now() - 3600000).toISOString(),
+          finishedAt: new Date().toISOString(),
+          readCount: 10,
+          insertedCount: 10,
+          updatedCount: 0,
+          rejectedCount: 0,
+          errors: [],
+        },
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    }),
+  ),
+
+  http.post('/api/v1/admin/imports', () =>
+    HttpResponse.json(
+      {
+        id: 'imp-' + Date.now(),
+        type: 'ORCHARDS',
+        sourceFile: 'uploaded.csv',
+        status: 'COMPLETED',
+        startedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
+        readCount: 2,
+        insertedCount: 2,
+        updatedCount: 0,
+        rejectedCount: 0,
+        errors: [],
+      },
+      { status: 201 },
+    ),
+  ),
 ];
 
 export const SEEDED_ACCOUNTS: { label: string; email: string; role: Role }[] = Object.values(DEMO_USERS).map((u) => ({

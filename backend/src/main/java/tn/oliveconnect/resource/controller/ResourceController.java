@@ -20,6 +20,14 @@ public class ResourceController {
         this.service = service;
     }
 
+    @GetMapping("/availability")
+    @PreAuthorize("hasAnyRole('LOGISTICS_MANAGER','COLLECTION_MANAGER','ADMIN')")
+    public tn.oliveconnect.resource.dto.ResourceDtos.ResourceAvailabilityResponse availability(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate date) {
+        return service.availability(date);
+    }
+
     @GetMapping("/{kind}")
     @PreAuthorize("hasAnyRole('LOGISTICS_MANAGER','COLLECTION_MANAGER','ADMIN')")
     public PageResponse<?> list(@PathVariable String kind,

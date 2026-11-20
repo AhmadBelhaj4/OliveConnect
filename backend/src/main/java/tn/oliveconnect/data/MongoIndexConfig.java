@@ -83,5 +83,14 @@ public class MongoIndexConfig {
                         .unique().named("idx_pr_tour_bin_uq"));
         mongo.indexOps("press_receptions").ensureIndex(
                 new Index().on("receivedAt", Sort.Direction.DESC).named("idx_pr_received_at"));
+
+        // 8. externalId sparse unique indexes pour l'import idempotent (A15)
+        for (String col : List.of("orchards", "workers", "vehicles", "presses", "maturity_readings", "weather_observations")) {
+            try {
+                mongo.indexOps(col).ensureIndex(
+                        new Index().on("externalId", Sort.Direction.ASC).unique().sparse()
+                                .named("idx_" + col + "_external_id_uq"));
+            } catch (Exception ignored) {}
+        }
     }
 }

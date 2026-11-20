@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.data.domain.Pageable;
@@ -24,16 +25,19 @@ public class ResourceService {
     private final VehicleRepository vehicles;
     private final BinRepository bins;
     private final EquipmentRepository equipment;
+    private final tn.oliveconnect.tour.repository.TourRepository tourRepository;
     private final ObjectMapper mapper;
     private final Validator validator;
 
     public ResourceService(WorkerRepository workers, VehicleRepository vehicles,
                            BinRepository bins, EquipmentRepository equipment,
+                           tn.oliveconnect.tour.repository.TourRepository tourRepository,
                            ObjectMapper mapper, Validator validator) {
         this.workers = workers;
         this.vehicles = vehicles;
         this.bins = bins;
         this.equipment = equipment;
+        this.tourRepository = tourRepository;
         this.mapper = mapper;
         this.validator = validator;
     }
@@ -152,5 +156,24 @@ public class ResourceService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, null, errors);
         }
         return dto;
+    }
+
+    public ResourceAvailabilityResponse availability(java.time.LocalDate date) {
+        List<tn.oliveconnect.tour.document.TourDocument> dayTours =
+                tourRepository.findByTourDateAndStatusNot(date, tn.oliveconnect.common.enums.TourStatus.CANCELLED);
+        Set<String> busyWorkers = dayTours.stream().flatMap(t -> t.getWorkerIds().stream()).collect(java.util.stream.Collectors.toSet());
+        Set<String> busyVehicles = dayTours.stream().flatMap(t -> t.getVehicleIds().stream()).collect(java.util.stream.Collectors.toSet());
+        Set<String> busyBins = dayTours.stream().flatMap(t -> t.getBinIds().stream()).collect(java.util.stream.Collectors.toSet());
+
+        return new ResourceAvailabilityResponse(
+                date,
+                workers.findByStatus(ResourceStatus.AVAILABLE, Pageable.unpaged()).stream()
+                        .filter(w -> !busyWorkers.contains(w.getId())).map(WorkerResponse::from).toList(),
+                vehicles.findByStatus(ResourceStatus.AVAILABLE, Pageable.unpaged()).stream()
+                        .filter(v -> !busyVehicles.contains(v.getId())).map(VehicleResponse::from).toList(),
+                bins.findByStatus(ResourceStatus.AVAILABLE, Pageable.unpaged()).stream()
+                        .filter(b -> !busyBins.contains(b.getId())).map(BinResponse::from).toList(),
+                equipment.findByStatus(ResourceStatus.AVAILABLE, Pageable.unpaged()).stream()
+                        .map(EquipmentResponse::from).toList());
     }
 }

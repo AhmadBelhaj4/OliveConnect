@@ -24,6 +24,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final tn.oliveconnect.audit.service.AuditService audit;
+
+    public GlobalExceptionHandler(tn.oliveconnect.audit.service.AuditService audit) {
+        this.audit = audit;
+    }
 
     private ResponseEntity<ApiError> build(ErrorCode code, String message, Map<String, String> fieldErrors) {
         return ResponseEntity.status(code.status()).body(ApiError.of(code, message, fieldErrors));
@@ -74,7 +79,10 @@ public class GlobalExceptionHandler {
 
     /** @PreAuthorize refusé -> 403 (l'utilisateur EST connecté, sinon le filtre aurait renvoyé 401). */
     @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
-    ResponseEntity<ApiError> handleDenied(Exception ex) {
+    ResponseEntity<ApiError> handleDenied(Exception ex, jakarta.servlet.http.HttpServletRequest req) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        tn.oliveconnect.security.AuthUser actor = (auth != null && auth.getPrincipal() instanceof tn.oliveconnect.security.AuthUser u) ? u : null;
+        audit.record(actor, "ACCESS_DENIED", "HTTP_ENDPOINT", req.getMethod() + " " + req.getRequestURI(), null);
         return build(ErrorCode.ACCESS_DENIED, null, null);
     }
 

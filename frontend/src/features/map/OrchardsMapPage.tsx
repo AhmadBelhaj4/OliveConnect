@@ -55,8 +55,8 @@ export function OrchardsMapPage() {
 
       {isLoading && <p className="text-xs text-olive-700/70">Chargement de la zone…</p>}
       {isError && (
-        <div className="px-3.5 py-2.5 rounded-lg bg-ochre-100 text-ochre-800 text-xs">
-          En Semaine 1, l&apos;endpoint réel <code>GET /api/v1/orchards/map</code> (tâche B7, S2) n&apos;est pas encore actif — utilisez <code>VITE_USE_MOCKS=true</code> pour tester la carte sur MSW.
+        <div className="px-3.5 py-2.5 rounded-lg bg-[#fee2e2] text-[#b33a3a] text-xs font-medium">
+          Impossible de charger les vergers sur la zone demandée.
         </div>
       )}
       {data?.truncated && (

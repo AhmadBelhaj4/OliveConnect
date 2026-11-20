@@ -1,0 +1,10 @@
+[
+  {
+    "externalId": "EXT-P1",
+    "name": "Huilerie Moderne Sfax",
+    "longitude": 10.75,
+    "latitude": 34.74,
+    "dailyCapacityKg": 60000,
+    "availableCapacityKg": 45000
+  }
+]
