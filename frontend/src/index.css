@@ -30,13 +30,13 @@
 
 @layer base {
   html {
-    background:
-      radial-gradient(ellipse 900px 700px at 10% 8%, rgba(168, 190, 114, 0.7), transparent 55%),
-      radial-gradient(ellipse 800px 600px at 92% 5%, rgba(224, 184, 86, 0.65), transparent 55%),
-      radial-gradient(ellipse 1100px 900px at 85% 60%, rgba(107, 142, 63, 0.55), transparent 60%),
-      radial-gradient(ellipse 800px 700px at 20% 70%, rgba(201, 150, 47, 0.45), transparent 60%),
-      radial-gradient(ellipse 900px 700px at 50% 95%, rgba(74, 107, 42, 0.3), transparent 65%),
-      linear-gradient(180deg, #faf6ee 0%, #f5eedb 50%, #f3edd9 100%);
+    background-color: #faf6ee;
+    background-image:
+      linear-gradient(180deg, rgba(250, 246, 238, 0.24) 0%, rgba(245, 238, 219, 0.30) 100%),
+      url('./assets/olive-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     background-repeat: no-repeat;
     min-height: 100%;
     color: #1f2418;
@@ -53,35 +53,35 @@
 
 @layer utilities {
   .glass {
-    background-color: rgba(255, 255, 255, 0.42);
+    background-color: rgba(255, 255, 255, 0.58);
     backdrop-filter: blur(22px) saturate(160%);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 6px 20px rgba(31, 36, 24, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    box-shadow: 0 6px 20px rgba(31, 36, 24, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.75);
   }
   .glass-strong {
-    background-color: rgba(255, 255, 255, 0.62);
+    background-color: rgba(255, 255, 255, 0.76);
     backdrop-filter: blur(28px) saturate(170%);
     -webkit-backdrop-filter: blur(28px) saturate(170%);
-    border: 1px solid rgba(255, 255, 255, 0.65);
-    box-shadow: 0 10px 32px rgba(31, 36, 24, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow: 0 10px 32px rgba(31, 36, 24, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
   .glass-subtle {
-    background-color: rgba(255, 255, 255, 0.28);
-    backdrop-filter: blur(16px) saturate(150%);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    background-color: rgba(255, 255, 255, 0.52);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.55);
   }
   .glass-nav {
-    background-color: rgba(255, 255, 255, 0.38);
+    background-color: rgba(255, 255, 255, 0.64);
     backdrop-filter: blur(24px) saturate(160%);
     -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.6);
   }
   .glass-hover { transition: background-color 200ms ease, box-shadow 200ms ease, transform 200ms ease; }
   .glass-hover:hover {
-    background-color: rgba(255, 255, 255, 0.68);
-    box-shadow: 0 12px 32px rgba(31, 36, 24, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    background-color: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 12px 32px rgba(31, 36, 24, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
   .tabnum { font-variant-numeric: tabular-nums; }
 }

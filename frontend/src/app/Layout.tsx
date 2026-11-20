@@ -19,6 +19,7 @@ import { useAuth } from '../features/auth/AuthContext';
 import { GlassCard } from '../components/GlassCard';
 import { cn } from '../lib/utils';
 import type { Role } from '../types/contract';
+import oliveLogo from '../assets/olive-logo.png';
 
 interface MenuItem {
   to: string;
@@ -63,18 +64,12 @@ export function Layout() {
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
 
-            <NavLink to="/map" className="flex items-center gap-2.5 text-inherit no-underline">
-              <div className="h-10 w-10 rounded-xl bg-olive-600 text-cream-50 grid place-items-center font-display font-bold text-base shadow-sm">
-                OC
-              </div>
-              <div className="leading-tight">
-                <div className="font-display font-bold text-base sm:text-lg text-olive-900">
-                  OliveConnect
-                </div>
-                <div className="text-[11px] text-olive-700/75 tracking-tight hidden sm:block">
-                  Coopérative oléicole · Région de Sfax
-                </div>
-              </div>
+            <NavLink to="/map" className="flex items-center text-inherit no-underline shrink-0">
+              <img
+                src={oliveLogo}
+                alt="OliveConnect — Coopérative oléicole · Région de Sfax"
+                className="h-11 sm:h-12 w-auto object-contain drop-shadow-sm"
+              />
             </NavLink>
           </div>
 
